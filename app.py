@@ -10,7 +10,8 @@ st.title("Real-Time Market Dashboard")
 if 'engine' not in st.session_state:
     st.session_state.engine = StreamEngine(
         symbols=["AAPL", "MSFT", "TSLA"],
-        data_source='polygon'
+        data_source='polygon',
+        api_key=st.secrets["POLYGON_API_KEY"]
     )
 
 async def run_stream():
@@ -30,5 +31,13 @@ while st.session_state.engine.running:
                     go.Scatter(x=df["timestamp"], y=df["price"], mode='lines')
                 )
                 st.plotly_chart(fig, use_container_width=True)
+
                 latest = df.iloc[-1]
                 st.metric(label=f"{symbol} Price", value=f"${latest['price']:.2f}", delta=f"{latest['size']} shares")
+
+                # Get predictions
+                result = st.session_state.engine.process_tick(latest)
+                if result["stock_pred"]:
+                    st.metric(label=f"{symbol} Predicted Price", value=f"${result['stock_pred']:.2f}")
+                if result["iv_pred"]:
+                    st.metric(label=f"{symbol} IV Swing Forecast", value=f"{result['iv_pred']:.2f} %")
