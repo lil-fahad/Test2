@@ -1,7 +1,7 @@
 import asyncio
 from live_data.market_connectors.polygon_ws import PolygonStream
 from streaming.indicators import StreamingTA
-from data_buffer import DataBuffer
+from live_data.data_buffer import DataBuffer
 
 class StreamEngine:
     def __init__(self, symbols, data_source='polygon'):
