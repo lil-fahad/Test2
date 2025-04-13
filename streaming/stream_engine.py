@@ -1,5 +1,5 @@
 import asyncio
-from live_data.market_connectors import PolygonStream
+from live_data.market_connectors.polygon_ws import PolygonStream
 from streaming.indicators import StreamingTA
 from data_buffer import DataBuffer
 
