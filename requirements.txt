@@ -12,3 +12,4 @@ streamlit==1.44.1
 alpaca-py==0.18.0
 yfinance==0.2.55
 polygon-api-client==1.14.4
+scikit-learn==1.4.1.post1
