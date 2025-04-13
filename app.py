@@ -7,22 +7,33 @@ import asyncio
 st.set_page_config(layout="wide")
 st.title("Real-Time Market Dashboard")
 
-if 'engine' not in st.session_state:
+# --- Symbol search input ---
+user_symbols = st.text_input(
+    "Enter stock symbols (comma-separated)", 
+    value="AAPL, MSFT, TSLA"
+)
+symbols = [s.strip().upper() for s in user_symbols.split(",") if s.strip()]
+
+# --- Prediction type selector ---
+prediction_type = st.selectbox(
+    "Select prediction type",
+    ["None", "Stock Forecast", "Options Forecast"]
+)
+
+# --- Stream trigger ---
+if st.button("Start Real-Time Feed"):
     st.session_state.engine = StreamEngine(
-        symbols=["AAPL", "MSFT", "TSLA"],
+        symbols=symbols,
         data_source='polygon',
         api_key=st.secrets["POLYGON_API_KEY"]
     )
+    st.session_state.prediction_type = prediction_type
+    asyncio.run(st.session_state.engine.start())
 
-async def run_stream():
-    await st.session_state.engine.start()
-
-if st.button("Start Real-Time Feed"):
-    asyncio.run(run_stream())
-
+# --- Real-time output ---
 placeholder = st.empty()
 
-while st.session_state.engine.running:
+if 'engine' in st.session_state and st.session_state.engine.running:
     with placeholder.container():
         for symbol in st.session_state.engine.symbols:
             df = st.session_state.engine.buffers[symbol].snapshot()
@@ -35,9 +46,10 @@ while st.session_state.engine.running:
                 latest = df.iloc[-1]
                 st.metric(label=f"{symbol} Price", value=f"${latest['price']:.2f}", delta=f"{latest['size']} shares")
 
-                # Get predictions
                 result = st.session_state.engine.process_tick(latest)
-                if result["stock_pred"]:
+
+                if st.session_state.prediction_type == "Stock Forecast" and result["stock_pred"]:
                     st.metric(label=f"{symbol} Predicted Price", value=f"${result['stock_pred']:.2f}")
-                if result["iv_pred"]:
-                    st.metric(label=f"{symbol} IV Swing Forecast", value=f"{result['iv_pred']:.2f} %")
+
+                if st.session_state.prediction_type == "Options Forecast" and result["iv_pred"]:
+                    st.metric(label=f"{symbol} IV Forecast", value=f"{result['iv_pred']:.2f} %")
