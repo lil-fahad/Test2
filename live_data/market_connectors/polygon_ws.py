@@ -1,41 +1,27 @@
-import websockets
 import asyncio
-import json
-from datetime import datetime
+import streamlit as st
+from live_data.market_connectors.polygon_ws import PolygonStream
+from streaming.indicators import StreamingTA
 from live_data.data_buffer import DataBuffer
 
-class PolygonStream:
-    def __init__(self, api_key, symbols):
-        self.uri = f"wss://socket.polygon.io/stocks"
-        self.api_key = api_key
+class StreamEngine:
+    def __init__(self, symbols, data_source='polygon', api_key=None):
         self.symbols = symbols
-        self.buffer = DataBuffer(capacity=1000)
-        
-    async def connect(self):
-        async with websockets.connect(self.uri) as ws:
-            await ws.send(json.dumps({
-                "action": "auth",
-                "params": self.api_key
-            }))
-            await ws.send(json.dumps({
-                "action": "subscribe",
-                "params": ",".join([f"A.{s}" for s in self.symbols])
-            }))
-            await self.handle_messages(ws)
+        self.data_source = data_source
+        self.api_key = api_key or st.secrets["POLYGON_API_KEY"]
+        self.ta = StreamingTA()
+        self.buffers = {s: DataBuffer() for s in symbols}
 
-    async def handle_messages(self, ws):
-        async for message in ws:
-            data = json.loads(message)
-            for event in data:
-                await self.process_event(event)
-    
-    async def process_event(self, event):
-        if event["ev"] == "A":
-            tick_data = {
-                "symbol": event["sym"],
-                "price": event["p"],
-                "size": event["s"],
-                "timestamp": datetime.fromtimestamp(event["t"]/1000),
-                "exchange": event["x"]
-            }
-            self.buffer.add(tick_data)
+    async def start(self):
+        if self.data_source == 'polygon':
+            connector = PolygonStream(
+                api_key=self.api_key,
+                symbols=self.symbols
+            )
+            await connector.connect()
+
+    def process_tick(self, tick):
+        symbol = tick["symbol"]
+        self.buffers[symbol].add(tick)
+        df = self.buffers[symbol].snapshot()
+        return self.ta.calculate_all(df)
