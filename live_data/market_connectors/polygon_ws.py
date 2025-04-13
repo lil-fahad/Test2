@@ -2,7 +2,7 @@ import websockets
 import asyncio
 import json
 from datetime import datetime
-from data_buffer import DataBuffer
+from live_data.data_buffer import DataBuffer
 
 class PolygonStream:
     def __init__(self, api_key, symbols):
